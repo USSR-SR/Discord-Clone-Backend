@@ -11,11 +11,24 @@ import {
   Resolver,
 } from "type-graphql";
 import argon2 from "argon2";
+import { Server } from "../entities/Server";
+import { UserServer } from "../entities/UserServer";
+import { parseServerJSON } from "../utils/parsers";
 
 @InputType()
 class UsernamePasswordInput {
   @Field()
+  usernameOrEmail: string;
+  @Field()
+  password: string;
+}
+
+@InputType()
+class RegisterInput {
+  @Field()
   username: string;
+  @Field()
+  email: string;
   @Field()
   password: string;
 }
@@ -49,7 +62,7 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async register(
-    @Arg("options") options: UsernamePasswordInput,
+    @Arg("options") options: RegisterInput,
     @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     const hashedPassword = await argon2.hash(options.password);
@@ -57,15 +70,22 @@ export class UserResolver {
     try {
       user = await User.create({
         username: options.username,
+        email: options.email,
         password: hashedPassword,
       }).save();
     } catch (err) {
       if (err.code === "23505") {
+        let errorField;
+        if (err.detail.includes("email")) {
+          errorField = "email";
+        } else {
+          errorField = "username";
+        }
         return {
           errors: [
             {
-              field: "username",
-              message: "user already exists",
+              field: errorField,
+              message: `user with this ${errorField} already exists`,
             },
           ],
         };
@@ -82,13 +102,24 @@ export class UserResolver {
     @Arg("options") options: UsernamePasswordInput,
     @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
-    const user = await User.findOne({ where: { username: options.username } });
+    let choice;
+    if (options.usernameOrEmail.includes(".com")) {
+      choice = "email";
+    } else {
+      choice = "username";
+    }
+    const user = await User.findOne({
+      where:
+        choice == "username"
+          ? { username: options.usernameOrEmail }
+          : { email: options.usernameOrEmail },
+    });
     if (!user) {
       return {
         errors: [
           {
-            field: "username",
-            message: "user not found",
+            field: choice,
+            message: `user with this ${choice} not found`,
           },
         ],
       };
@@ -119,8 +150,25 @@ export class UserResolver {
     return true;
   }
 
+  @Query(() => [Server])
+  async getUserServers(
+    @Ctx() { req }: MyContext
+  ): Promise<Server[] | undefined> {
+    const { userID } = req.session;
+    const userServers = (
+      await UserServer.find({ relations: ["user", "server"] })
+    ).filter((item) => item.user.id === userID);
+    const servers = parseServerJSON(userServers.map((item) => item.server));
+    return servers;
+  }
+
   @Query(() => [User])
-  async dev(): Promise<User[]> {
+  async devAllUsers(): Promise<User[]> {
     return User.find();
+  }
+
+  @Mutation(() => User, { nullable: true })
+  async devDeleteUsers(): Promise<void> {
+    User.delete({});
   }
 }

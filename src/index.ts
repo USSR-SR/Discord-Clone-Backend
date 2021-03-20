@@ -11,6 +11,7 @@ import cors from "cors";
 import ormConfig from "./orm.config";
 import { MyContext } from "./types";
 import { UserResolver } from "./resolvers/user";
+import { ServerResolver } from "./resolvers/server";
 
 declare module "express-session" {
   export interface SessionData {
@@ -54,7 +55,7 @@ const main = async () => {
 
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [UserResolver],
+      resolvers: [UserResolver, ServerResolver],
       validate: false,
     }),
     context: ({ req, res }): MyContext => ({ req, res }),
