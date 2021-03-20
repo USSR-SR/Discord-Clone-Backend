@@ -5,6 +5,7 @@ import { UserServer } from "../entities/UserServer";
 import { User } from "../entities/User";
 import { getConnection } from "typeorm";
 import { parseServerJSON } from "../utils/parsers";
+import { Invite } from "../entities/Invite";
 
 @Resolver()
 export class ServerResolver {
@@ -38,6 +39,18 @@ export class ServerResolver {
     return newServer;
   }
 
+  @Query(() => [Invite], { nullable: true })
+  async getServerInvites(
+    @Arg("serverID") serverID: string
+  ): Promise<Invite[] | undefined> {
+    const server = await Server.findOne({
+      where: { id: serverID },
+      relations: ["invites"],
+    });
+    if (!server) return undefined;
+    return server.invites;
+  }
+
   @Query(() => [Server])
   async devAllServers(): Promise<Server[]> {
     const servers = parseServerJSON(await Server.find({}));
@@ -46,6 +59,7 @@ export class ServerResolver {
 
   @Mutation(() => Server, { nullable: true })
   async devServerDelete(): Promise<void> {
+    Invite.delete({});
     UserServer.delete({});
     Server.delete({});
   }

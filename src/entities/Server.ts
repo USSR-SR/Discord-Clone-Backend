@@ -12,6 +12,7 @@ import {
 } from "typeorm";
 import { UserServer } from "./UserServer";
 import { randomID } from "../utils/randomID";
+import { Invite } from "./Invite";
 
 @ObjectType()
 @Entity()
@@ -43,6 +44,9 @@ export class Server extends BaseEntity {
 
   @OneToMany(() => UserServer, (userServer) => userServer.server)
   userServers: UserServer[];
+
+  @OneToMany(() => Invite, (invite) => invite.server)
+  invites: Invite[];
 
   @Field(() => String)
   @CreateDateColumn()

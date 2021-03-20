@@ -4,11 +4,12 @@ import { createConnection } from "typeorm";
 import { Server } from "./entities/Server";
 import { UserServer } from "./entities/UserServer";
 import { Friend } from "./entities/Friend";
+import { Invite } from "./entities/Invite";
 
 export default {
   synchronize: true,
   logging: true,
-  entities: [User, Server, UserServer, Friend],
+  entities: [User, Server, UserServer, Friend, Invite],
   dbName: "discordCloneDB",
   type: "postgres",
   debug: !__prod__,
