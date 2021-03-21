@@ -1,10 +1,14 @@
 import { User } from "../entities/User";
-import { MyContext } from "../types";
+import {
+  FriendRequest,
+  MyContext,
+  RegisterInput,
+  UsernamePasswordInput,
+} from "../types";
 import {
   Arg,
   Ctx,
   Field,
-  InputType,
   Mutation,
   ObjectType,
   Query,
@@ -13,25 +17,9 @@ import {
 import argon2 from "argon2";
 import { Server } from "../entities/Server";
 import { UserServer } from "../entities/UserServer";
-import { parseServerJSON } from "../utils/parsers";
-
-@InputType()
-class UsernamePasswordInput {
-  @Field()
-  usernameOrEmail: string;
-  @Field()
-  password: string;
-}
-
-@InputType()
-class RegisterInput {
-  @Field()
-  username: string;
-  @Field()
-  email: string;
-  @Field()
-  password: string;
-}
+import { UserInteraction } from "../entities/UserInteraction";
+import { getConnection } from "typeorm";
+import { Message } from "../entities/Message";
 
 @ObjectType()
 class FieldError {
@@ -158,8 +146,121 @@ export class UserResolver {
     const userServers = (
       await UserServer.find({ relations: ["user", "server"] })
     ).filter((item) => item.user.id === userID);
-    const servers = parseServerJSON(userServers.map((item) => item.server));
+    const servers = userServers.map((item) => item.server);
     return servers;
+  }
+
+  @Query(() => [Message], { nullable: true })
+  async getDirectMessages(
+    @Arg("recipientID") recipientID: string,
+    @Ctx() { req }: MyContext
+  ): Promise<Message[] | undefined> {
+    if (!req.session.userID) return undefined;
+    if (parseInt(recipientID) === req.session.userID) return undefined;
+
+    const user = await User.findOne(req.session.userID);
+    const recipient = await User.findOne(recipientID);
+    if (!user || !recipient) return undefined;
+
+    var userInteraction = (
+      await UserInteraction.find({
+        relations: ["user1", "user2", "directMessages"],
+      })
+    ).filter(
+      (item) =>
+        (item.user1.id === user.id && item.user2.id === recipient.id) ||
+        (item.user2.id === user.id && item.user1.id === recipient.id)
+    )[0];
+
+    if (!userInteraction) return undefined;
+
+    return userInteraction.directMessages;
+  }
+
+  @Mutation(() => Message, { nullable: true })
+  async sendDirectMessage(
+    @Arg("text") text: string,
+    @Arg("recipientID") recipientID: string,
+    @Ctx() { req }: MyContext
+  ): Promise<Message | undefined> {
+    if (!req.session.userID) return undefined;
+    if (parseInt(recipientID) === req.session.userID) return undefined;
+
+    const conn = getConnection();
+    const user = await User.findOne(req.session.userID);
+    const recipient = await User.findOne(recipientID);
+    if (!user || !recipient) return undefined;
+
+    var userInteraction = (
+      await UserInteraction.find({
+        relations: ["user1", "user2", "directMessages"],
+      })
+    ).filter(
+      (item) =>
+        (item.user1.id === user.id && item.user2.id === recipient.id) ||
+        (item.user2.id === user.id && item.user1.id === recipient.id)
+    )[0];
+
+    if (!userInteraction) {
+      userInteraction = new UserInteraction();
+      userInteraction.user1 = user;
+      userInteraction.user2 = recipient;
+      await conn.manager.save(userInteraction);
+    }
+
+    const newMessage = new Message();
+    newMessage.authorID = req.session.userID;
+    newMessage.direct = userInteraction;
+    newMessage.text = text;
+    await conn.manager.save(newMessage);
+
+    return newMessage;
+  }
+
+  @Mutation(() => UserInteraction, { nullable: true })
+  async friendRequest(
+    @Arg("recipientID") recipientID: string,
+    @Ctx() { req }: MyContext
+  ): Promise<UserInteraction | undefined> {
+    if (!req.session.userID) return undefined;
+    if (parseInt(recipientID) === req.session.userID) return undefined;
+
+    const conn = getConnection();
+    const user = await User.findOne(req.session.userID);
+    const recipient = await User.findOne(recipientID);
+    if (!user || !recipient) return undefined;
+
+    var userInteraction = (
+      await UserInteraction.find({
+        relations: ["user1", "user2", "directMessages"],
+      })
+    ).filter(
+      (item) =>
+        (item.user1.id === user.id && item.user2.id === recipient.id) ||
+        (item.user2.id === user.id && item.user1.id === recipient.id)
+    )[0];
+
+    if (!userInteraction) {
+      userInteraction = new UserInteraction();
+      userInteraction.user1 = user;
+      userInteraction.user2 = recipient;
+      userInteraction.friendRequest = "none";
+    }
+
+    const position: FriendRequest =
+      userInteraction.user1.id === user.id ? "sentByUser1" : "sentByUser2";
+
+    if (userInteraction.friendRequest === position) {
+      userInteraction.friendRequest = "none";
+    } else if (userInteraction.friendRequest === `none`) {
+      userInteraction.friendRequest = position;
+    } else {
+      userInteraction.friendRequest = "accepted";
+    }
+
+    await conn.manager.save(userInteraction);
+
+    return userInteraction;
   }
 
   @Query(() => [User])

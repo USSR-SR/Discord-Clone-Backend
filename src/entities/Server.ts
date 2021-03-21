@@ -1,4 +1,3 @@
-import { TextChannel, Role } from "../types";
 import { Field, ObjectType } from "type-graphql";
 import {
   Entity,
@@ -13,6 +12,8 @@ import {
 import { UserServer } from "./UserServer";
 import { randomID } from "../utils/randomID";
 import { Invite } from "./Invite";
+import { Role } from "./Role";
+import { TextChannel } from "./TextChannel";
 
 @ObjectType()
 @Entity()
@@ -22,7 +23,7 @@ export class Server extends BaseEntity {
   id: number;
 
   @BeforeInsert()
-  private beforeInsert = () => {
+  protected beforeInsert = () => {
     this.id = randomID();
   };
 
@@ -34,12 +35,10 @@ export class Server extends BaseEntity {
   @Column()
   ownerID: number;
 
-  @Field(() => [Role], { nullable: true })
-  @Column({ array: true, type: "json", nullable: true })
+  @OneToMany(() => Role, (role) => role.server)
   roles: Role[];
 
-  @Field(() => [TextChannel])
-  @Column({ array: false, type: "text" })
+  @OneToMany(() => TextChannel, (textChannel) => textChannel.server)
   textChannels: TextChannel[];
 
   @OneToMany(() => UserServer, (userServer) => userServer.server)

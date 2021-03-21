@@ -9,7 +9,7 @@ import {
   BaseEntity,
   OneToMany,
 } from "typeorm";
-import { Friend } from "./Friend";
+import { UserInteraction } from "./UserInteraction";
 
 @ObjectType()
 @Entity()
@@ -32,11 +32,11 @@ export class User extends BaseEntity {
   @OneToMany(() => UserServer, (userServer) => userServer.user)
   userServers: UserServer[];
 
-  @OneToMany(() => Friend, (friend) => friend.recieverUser)
-  friendsRecieved: Friend[];
+  @OneToMany(() => UserInteraction, (userInteraction) => userInteraction.user1)
+  primaryInteraction: UserInteraction[];
 
-  @OneToMany(() => Friend, (friend) => friend.supplierUser)
-  friendsSupplied: Friend[];
+  @OneToMany(() => UserInteraction, (userInteraction) => userInteraction.user2)
+  secondaryInteraction: UserInteraction[];
 
   @Field(() => String)
   @CreateDateColumn()

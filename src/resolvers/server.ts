@@ -1,11 +1,12 @@
 import { Server } from "../entities/Server";
 import { Resolver, Query, Mutation, Arg, Ctx } from "type-graphql";
-import { MyContext } from "../types";
+import { MyContext, RoleInput, TextChannelInput } from "../types";
 import { UserServer } from "../entities/UserServer";
 import { User } from "../entities/User";
 import { getConnection } from "typeorm";
-import { parseServerJSON } from "../utils/parsers";
 import { Invite } from "../entities/Invite";
+import { Role } from "../entities/Role";
+import { TextChannel } from "../entities/TextChannel";
 
 @Resolver()
 export class ServerResolver {
@@ -22,7 +23,6 @@ export class ServerResolver {
     const newServer = Server.create({
       name: name,
       ownerID: req.session.userID,
-      textChannels: [{ name: "general", private: true }],
     });
     await newServer.save();
 
@@ -35,6 +35,12 @@ export class ServerResolver {
     newRelation.server = newServer;
     newRelation.user = owner;
     await conn.manager.save(newRelation);
+
+    var newTextChannel = new TextChannel();
+    newTextChannel.name = "general";
+    newTextChannel.private = false;
+    newTextChannel.server = newServer;
+    await conn.manager.save(newTextChannel);
 
     return newServer;
   }
@@ -51,9 +57,82 @@ export class ServerResolver {
     return server.invites;
   }
 
+  @Query(() => [User])
+  async getServerUsers(
+    @Arg("serverID") serverID: string
+  ): Promise<User[] | undefined> {
+    const userServers = (
+      await UserServer.find({ relations: ["user", "server"] })
+    ).filter((item) => item.server.id === parseInt(serverID));
+    const users = userServers.map((item) => item.user);
+    return users;
+  }
+
+  @Query(() => [TextChannel], { nullable: true })
+  async getServerTextChannels(
+    @Arg("serverID") serverID: string
+  ): Promise<TextChannel[] | undefined> {
+    const server = await Server.findOne(serverID, {
+      relations: ["textChannels"],
+    });
+    if (!server) return undefined;
+    return server.textChannels;
+  }
+
+  @Mutation(() => TextChannel, { nullable: true })
+  async createServerTextChannel(
+    @Arg("options") options: TextChannelInput,
+    @Arg("serverID") serverID: string
+  ): Promise<TextChannel | undefined> {
+    const conn = getConnection();
+    const server = await Server.findOne(serverID);
+    if (!server) return undefined;
+
+    const newTextChannel = new TextChannel();
+    newTextChannel.server = server;
+    newTextChannel.name = options.name;
+    newTextChannel.private = options.private;
+    await conn.manager.save(newTextChannel);
+
+    return newTextChannel;
+  }
+
+  @Query(() => [Role], { nullable: true })
+  async getServerRoles(
+    @Arg("serverID") serverID: string
+  ): Promise<Role[] | undefined> {
+    const server = await Server.findOne(serverID, { relations: ["roles"] });
+    if (!server) return undefined;
+    return server.roles;
+  }
+
+  @Mutation(() => Role, { nullable: true })
+  async createServerRole(
+    @Arg("options") options: RoleInput,
+    @Arg("serverID") serverID: string
+  ): Promise<Role | undefined> {
+    const conn = getConnection();
+    const server = await Server.findOne(serverID);
+    if (!server) return undefined;
+
+    const newRole = new Role();
+    newRole.server = server;
+    newRole.name = options.name;
+    newRole.color = options.color;
+    newRole.displaySeparate = options.displaySeparate;
+    newRole.admin = options.admin;
+    await conn.manager.save(newRole);
+
+    return newRole;
+  }
+
   @Query(() => [Server])
   async devAllServers(): Promise<Server[]> {
-    const servers = parseServerJSON(await Server.find({}));
+    const servers = await Server.find({});
+    const relServers = await Server.find({
+      relations: ["userServers", "roles", "textChannels", "invites"],
+    });
+    console.log(relServers[0]);
     return servers;
   }
 

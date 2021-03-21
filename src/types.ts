@@ -1,49 +1,47 @@
 import { Request, Response } from "express";
-import { Field, ObjectType } from "type-graphql";
+import { InputType, Field } from "type-graphql";
 
 export type MyContext = {
   req: Request;
   res: Response;
 };
 
-@ObjectType()
-export class Role {
+export type FriendRequest = "none" | "sentByUser1" | "sentByUser2" | "accepted";
+
+@InputType()
+export class UsernamePasswordInput {
+  @Field()
+  usernameOrEmail: string;
+  @Field()
+  password: string;
+}
+
+@InputType()
+export class RegisterInput {
+  @Field()
+  username: string;
+  @Field()
+  email: string;
+  @Field()
+  password: string;
+}
+
+@InputType()
+export class RoleInput {
   @Field()
   name: string;
-
-  @Field()
-  admin: boolean;
-
   @Field()
   color: string;
-
+  @Field()
+  admin: boolean;
   @Field()
   displaySeparate: boolean;
 }
 
-@ObjectType()
-export class TextChannel {
+@InputType()
+export class TextChannelInput {
   @Field()
   name: string;
-
   @Field()
   private: boolean;
-
-  @Field(() => [Message], { nullable: true })
-  messages?: Message[];
-
-  @Field(() => [Message], { nullable: true })
-  pins?: Message[];
-}
-
-@ObjectType()
-export class Message {
-  @Field()
-  authorID: number;
-
-  @Field()
-  createdAt: Date;
-
-  @Field()
-  text: string;
 }

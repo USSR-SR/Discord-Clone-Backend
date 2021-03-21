@@ -3,7 +3,6 @@ import { getConnection } from "typeorm";
 import { Server } from "../entities/Server";
 import { Invite } from "../entities/Invite";
 import { generateInviteKey } from "../utils/generateInviteKey";
-import { parseServerJSON } from "../utils/parsers";
 import { UserServer } from "../entities/UserServer";
 import { User } from "../entities/User";
 import { MyContext } from "../types";
@@ -21,7 +20,7 @@ export class InviteResolver {
 
     const newInvite = new Invite();
     newInvite.key = generateInviteKey();
-    newInvite.server = parseServerJSON([server])[0];
+    newInvite.server = server;
     newInvite.expirationDate = expirationDate;
     await conn.manager.save(newInvite);
 
