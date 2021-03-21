@@ -11,6 +11,9 @@ import cors from "cors";
 import ormConfig from "./orm.config";
 import { MyContext } from "./types";
 import { UserResolver } from "./resolvers/user";
+import { ServerResolver } from "./resolvers/server";
+import { InviteResolver } from "./resolvers/invite";
+import { TextChannelResolver } from "./resolvers/textchannel";
 
 declare module "express-session" {
   export interface SessionData {
@@ -54,7 +57,12 @@ const main = async () => {
 
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [UserResolver],
+      resolvers: [
+        UserResolver,
+        ServerResolver,
+        InviteResolver,
+        TextChannelResolver,
+      ],
       validate: false,
     }),
     context: ({ req, res }): MyContext => ({ req, res }),

@@ -1,3 +1,4 @@
+import { UserServer } from "./UserServer";
 import { Field, ObjectType } from "type-graphql";
 import {
   Entity,
@@ -6,7 +7,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   BaseEntity,
+  OneToMany,
 } from "typeorm";
+import { UserInteraction } from "./UserInteraction";
 
 @ObjectType()
 @Entity()
@@ -19,8 +22,21 @@ export class User extends BaseEntity {
   @Column({ unique: true })
   username: string;
 
+  @Field()
+  @Column({ unique: true })
+  email: string;
+
   @Column()
   password: string;
+
+  @OneToMany(() => UserServer, (userServer) => userServer.user)
+  userServers: UserServer[];
+
+  @OneToMany(() => UserInteraction, (userInteraction) => userInteraction.user1)
+  primaryInteraction: UserInteraction[];
+
+  @OneToMany(() => UserInteraction, (userInteraction) => userInteraction.user2)
+  secondaryInteraction: UserInteraction[];
 
   @Field(() => String)
   @CreateDateColumn()
